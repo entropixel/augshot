@@ -1,6 +1,6 @@
 #!/bin/sh
 
-SDL2=/opt/sdl2/win
+SDL2=~/win32-sdl2/
 zipname=7dfps-win32-$(date +"%m%d%y-%H%M").zip
 
 make CC=i686-w64-mingw32-gcc SDL2_PATH=$SDL2 OUT=7dfps.exe OPT=0 DBG=3

@@ -29,4 +29,6 @@ extern uint32 curtick;
 #define SWIDTH 256
 #define SHEIGHT 144
 
+#define M_PI 3.141593
+
 #endif // GLOBAL_H__

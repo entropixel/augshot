@@ -1,6 +1,14 @@
+#include <math.h>
+
 #include "global.h"
 
 #include "geom.h"
+
+inline float distcalc (point a, point b)
+{
+	return sqrtf ((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+	//return fabs (a.x - b.x) / cosf (angle);
+}
 
 uint32 intersect (line *a, line *b, point *i)
 {

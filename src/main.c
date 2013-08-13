@@ -3,8 +3,12 @@
 #include "sdl.h"
 
 #include "global.h"
+#include "input.h"
 #include "geom.h"
+#include "mapobj.h"
+#include "player.h"
 #include "rndr.h"
+#include "level.h"
 
 #if !SDL_VERSION_ATLEAST(2,0,0)
 #error "Need SDL 2.0"
@@ -19,6 +23,7 @@ SDL_Renderer *rndr;
 uint8 running = 1;
 uint32 curtick = 0;
 static uint32 ticktime = 1000 / 60;
+uint16 frametimes [48] = { 0 };
 
 int main (int argc, char **argv)
 {
@@ -53,9 +58,9 @@ int main (int argc, char **argv)
 		return 4;
 	}
 
-	uint8 *spixels; // pointer where screen's pixels go
-
+	input_keys = SDL_GetKeyboardState (NULL);
 	rndr_prepare ();
+	level_prepare (level);
 
 	int32 nexttick = SDL_GetTicks ();
 	SDL_Event ev;
@@ -77,11 +82,12 @@ int main (int argc, char **argv)
 		{
 			if (ev.type == SDL_QUIT)
 				running = 0;
-			//if (ev.type == SDL_KEYDOWN || ev.type == SDL_KEYUP)
-			//	input_keys = SDL_GetKeyboardState (NULL);
+			if (ev.type == SDL_KEYDOWN || ev.type == SDL_KEYUP)
+				input_keys = SDL_GetKeyboardState (NULL);
 		}
 
 		// do logic here
+		player.logic (&player);
 
 		// if our current time is ahead of the start of the next tick, we will skip rendering this frame,
 		// in an attempt to catch back up. we'll do this up to 15 times before giving up and rendering
@@ -109,6 +115,8 @@ int main (int argc, char **argv)
 
 			SDL_Delay (sleeptime);
 		}
+
+		frametimes [curtick % 48] = ticktime - sleeptime;
 		#else
 		if (curtick == 4000)
 			break;
