@@ -14,29 +14,33 @@ mapobj player = { { 64, 64 }, 0.0, 32.0, player_logic };
 
 void player_logic (mapobj *self)
 {
+	self->momx = self->momy = 0.0;
 	if (input_keydown ("w"))
 	{
-		self->p.x += cosf (self->angle) * 3;
-		self->p.y += sinf (self->angle) * 3;
+		self->momx += cosf (self->angle) * 3;
+		self->momy += sinf (self->angle) * 3;
 	}
 
 	if (input_keydown ("s"))
 	{
-		self->p.x -= cosf (self->angle) * 3;
-		self->p.y -= sinf (self->angle) * 3;
+		self->momx -= cosf (self->angle) * 3;
+		self->momy -= sinf (self->angle) * 3;
 	}
 
 	if (input_keydown ("a"))
 	{
-		self->p.x += cosf (self->angle + M_PI / 2) * 3;
-		self->p.y += sinf (self->angle + M_PI / 2) * 3;
+		self->momx += cosf (self->angle + M_PI / 2) * 3;
+		self->momy += sinf (self->angle + M_PI / 2) * 3;
 	}
 
 	if (input_keydown ("d"))
 	{
-		self->p.x += cosf (self->angle - M_PI / 2) * 3;
-		self->p.y += sinf (self->angle - M_PI / 2) * 3;
+		self->momx += cosf (self->angle - M_PI / 2) * 3;
+		self->momy += sinf (self->angle - M_PI / 2) * 3;
 	}
+
+	self->p.x += self->momx;
+	self->p.y += self->momy;
 
 	if (input_keydown ("left"))
 	{

@@ -11,6 +11,14 @@ typedef struct
 	float angle;
 } camera;
 
+typedef struct
+{
+	const char *path;
+	uint32 *pixels;
+	uint16 w;
+	uint16 h;
+} texture;
+
 void rndr_prepare (void);
 void rndr_dorndr (void);
 

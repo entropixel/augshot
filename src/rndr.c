@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "global.h"
+#include "stb_image.h"
 
 #include "geom.h"
 #include "rndr.h"
@@ -11,10 +12,12 @@
 #include "player.h"
 #include "level.h"
 
-#define LIGHTGRAD 0.015
+#define LIGHTGRAD 0.012
 uint32 *pixels;
 float pplut [SWIDTH] = { 0 }; // LUT for angles pointing to points on the projection plane
 float ppdist; // distance to projection plane center, from the player
+
+static float bobframes = 0.0, bobamt = 0.0;
 
 static inline void rndr_setpixel (uint32 x, uint32 y, uint8 r, uint8 g, uint8 b)
 {
@@ -55,7 +58,7 @@ uint32 rndr_column (float dist, uint32 x, line *ray, line *wall, point in, int c
 
 	offsx = distcalc (wall->a, in);
 
-	for (i = SHEIGHT / 2 - colh * 0.5; i < SHEIGHT / 2 + colh * 0.5; i++)
+	for (i = SHEIGHT / 2 - colh * (0.5 + bobamt); i < SHEIGHT / 2 + colh * (0.5 - bobamt); i++)
 	{
 		if (i < 0 || i >= SHEIGHT)
 			continue;
@@ -120,6 +123,18 @@ void rndr_dorndr (void)
 
 	rndr_clear ();
 
+	// calculate bob amount
+	if (player.momx == 0.0 && player.momy == 0.0)
+	{
+		bobframes = 0.0;
+		if (fabs (bobamt) > 0.0001)
+			bobamt -= bobamt / 10;
+	}
+	else
+	{
+		bobframes += 0.1;
+		bobamt = sinf (bobframes) * 0.05;
+	}
 	ray.a.x = player.p.x;
 	ray.a.y = player.p.y;
 
@@ -169,7 +184,8 @@ void rndr_dorndr (void)
 
 	// draw debug stuff (render times)
 	for (i = 0; i < 48; i++)
-		rndr_setpixel (i, SHEIGHT - 1 - frametimes [i], 200, 200, 0);
+		if (frametimes [i] < SHEIGHT)
+			rndr_setpixel (i, SHEIGHT - 1 - frametimes [i], 200, 200, 0);
 
 //	player.angle += 0.01;
 }

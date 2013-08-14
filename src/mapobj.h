@@ -14,6 +14,9 @@ typedef struct mapobj_s
 	float angle;
 	float radius;
 	void (*logic)(struct mapobj_s *self);
+
+	float momx;
+	float momy;
 	uint8 collidx;
 	collision collisions [256];
 } mapobj;
