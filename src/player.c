@@ -1,5 +1,7 @@
 #include <math.h>
 
+#include "sdl.h"
+
 #include "global.h"
 
 #include "input.h"
