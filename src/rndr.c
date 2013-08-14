@@ -29,10 +29,22 @@ static inline void rndr_darken (uint32 x, uint32 y, float r, float g, float b, f
 	rndr_setpixel (x, y, (uint8)(r * mul), (uint8)(g * mul), (uint8)(b * mul));
 }
 
+static inline void rndr_pixel (uint32 x, uint32 y, uint32 px, float mul)
+{
+	rndr_darken (x, y, px & 0x00ff0000 >> 16, px & 0x0000ff00 >> 8, px & 0x000000ff, mul);
+}
+
 static inline void rndr_clear (void)
 {
 	memset (pixels, 0, SWIDTH * SHEIGHT * 4);
 }
+
+void rndr_loadtex (texture *tx)
+{
+	tx->pixels = stbi_load (tx->path, &(tx->w), &(tx->h), NULL, 4);
+}
+
+texture walltex = { .path = "res/textures/lower_normal.png" };
 
 void rndr_prepare (void)
 {
@@ -44,29 +56,35 @@ void rndr_prepare (void)
 
 	for (i = 0; i < SWIDTH; i++)
 		pplut [i] = atanf ((((float)SWIDTH / 2.0 - i)) / ppdist);
+
+	rndr_loadtex (&walltex);
 }
 
 // render wall section
 // returns bottom pixel
-uint32 rndr_column (float dist, uint32 x, line *ray, line *wall, point in, int color)
+uint32 rndr_column (float dist, uint32 x, line *ray, line *wall, point in)
 {
 	int i;
-	float offsx, offsy;
+	int32 offsx, offsy;
+	uint32 *pixel; 
 	float colh = (128.0 / dist) * ppdist;
+	float hratio = 128.0 / colh;
+	int colstart = SHEIGHT / 2 - colh * (0.5 + bobamt);
 	float dark = 1 / (dist * LIGHTGRAD);
 	dark = dark > 1 ? 1 : dark;
 
 	offsx = distcalc (wall->a, in);
 
-	for (i = SHEIGHT / 2 - colh * (0.5 + bobamt); i < SHEIGHT / 2 + colh * (0.5 - bobamt); i++)
+	for (i = colstart; i < SHEIGHT / 2 + colh * (0.5 - bobamt); i++)
 	{
 		if (i < 0 || i >= SHEIGHT)
 			continue;
 
-		if ((int)(offsx / 8) % 2)
-			rndr_darken (x, i, color, color, color, dark);
-		else
-			rndr_darken (x, i, color + 40, color, color, dark);
+		offsx %= walltex.w;
+		offsy = (float)(i - colstart) * hratio;
+
+		pixel = walltex.pixels + (offsy * walltex.w) + offsx;
+		rndr_pixel (x, i, *pixel, dark);
 	}
 
 	return i;
@@ -175,7 +193,7 @@ void rndr_dorndr (void)
 		// render best choice
 		if (best)
 		{
-			colend = rndr_column (bestdist, i, &ray, best, bestpt, 48);
+			colend = rndr_column (bestdist, i, &ray, best, bestpt);
 			rndr_floor (i, colend);
 		}
 		else
@@ -186,6 +204,9 @@ void rndr_dorndr (void)
 	for (i = 0; i < 48; i++)
 		if (frametimes [i] < SHEIGHT)
 			rndr_setpixel (i, SHEIGHT - 1 - frametimes [i], 200, 200, 0);
+
+//	for (i = 0; i < walltex.w * walltex.h; i++)
+//		rndr_pixel (i % walltex.w, i / walltex.h, *(walltex.pixels + ((i / walltex.h) * walltex.w) + i % walltex.w), 1.0);
 
 //	player.angle += 0.01;
 }

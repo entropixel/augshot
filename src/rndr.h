@@ -15,8 +15,8 @@ typedef struct
 {
 	const char *path;
 	uint32 *pixels;
-	uint16 w;
-	uint16 h;
+	int32 w;
+	int32 h;
 } texture;
 
 void rndr_prepare (void);
