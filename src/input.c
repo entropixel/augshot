@@ -6,6 +6,8 @@
 #include "global.h"
 #include "geom.h"
 #include "rndr.h"
+#include "player.h"
+#include "mapobj.h"
 #include "input.h"
 
 uint8 input_keydown (const char *key)
@@ -39,3 +41,9 @@ void input_dokeys (void)
 keydef_t keydefs [] = {
 	{ NULL, 0, NULL }
 };
+
+void input_movemouse (SDL_MouseMotionEvent *mm)
+{
+//	SDL_WarpMouseInWindow (NULL, SWIDTH / 2, SHEIGHT / 2);
+	player_turn (&player, mm->xrel);
+}

@@ -58,9 +58,13 @@ int main (int argc, char **argv)
 		return 4;
 	}
 
+	// setup input stuff
+	SDL_SetWindowGrab (win, 1);
+	SDL_SetRelativeMouseMode (1);
 	input_keys = SDL_GetKeyboardState (NULL);
+
 	rndr_prepare ();
-	level_prepare (level);
+	level_prepare ((tile*)level);
 
 	int32 nexttick = SDL_GetTicks ();
 	SDL_Event ev;
@@ -84,6 +88,8 @@ int main (int argc, char **argv)
 				running = 0;
 			if (ev.type == SDL_KEYDOWN || ev.type == SDL_KEYUP)
 				input_keys = SDL_GetKeyboardState (NULL);
+			if (ev.type == SDL_MOUSEMOTION)
+				input_movemouse (&(ev.motion));
 		}
 
 		// do logic here

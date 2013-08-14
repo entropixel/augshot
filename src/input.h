@@ -15,5 +15,6 @@ extern keydef_t keydefs [];
 
 uint8 input_keydown (const char *key);
 void input_dokeys (void);
+void input_movemouse (SDL_MouseMotionEvent *mm);
 
 #endif // INPUT_H__

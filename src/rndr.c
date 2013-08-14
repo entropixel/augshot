@@ -5,7 +5,6 @@
 
 #include "global.h"
 
-#include "input.h"
 #include "geom.h"
 #include "rndr.h"
 #include "mapobj.h"
@@ -119,7 +118,8 @@ void rndr_dorndr (void)
 		}
 
 		// render best choice
-		rndr_column (bestdist, i, &ray, best, bestpt, 48);
+		if (best)
+			rndr_column (bestdist, i, &ray, best, bestpt, 48);
 	}
 
 	// draw debug stuff (render times)

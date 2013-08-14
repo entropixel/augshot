@@ -1,12 +1,24 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
 #include "global.h"
 
 #include "geom.h"
 #include "level.h"
 
-uint8 leveltmp [LH] [LW] = {
+/*uint8 leveltmp [LH] [LW] = {
 	{ 1, 0, 0, 0, 0, 0 },
 	{ 1, 1, 1, 0, 1, 0 },
+	{ 0, 0, 1, 0, 1, 0 },
+	{ 0, 1, 1, 1, 1, 0 },
+	{ 0, 1, 0, 0, 1, 0 },
+	{ 0, 0, 0, 1, 1, 0 },
+};*/
+
+uint8 leveltmp [LH] [LW] = {
+	{ 1, 1, 1, 1, 1, 1 },
+	{ 1, 1, 1, 1, 1, 1 },
 	{ 0, 0, 1, 0, 1, 0 },
 	{ 0, 1, 1, 1, 1, 0 },
 	{ 0, 1, 0, 0, 1, 0 },
