@@ -50,6 +50,21 @@ uint8 mapobj_line_coll (mapobj *m, line *ln)
 	return 0;
 }
 
+uint8 mapobj_obj_coll (mapobj *m, mapobj *t)
+{
+	float dist_mt = distcalc (m->p, t->p) - t->radius;
+
+	if (dist_mt < m->radius)
+	{
+		m->collisions [m->collidx].dx = ((m->p.x - t->p.x) / dist_mt) * (m->radius - dist_mt);
+		m->collisions [m->collidx].dy = ((m->p.y - t->p.y) / dist_mt) * (m->radius - dist_mt);
+		m->collidx ++;
+		return 1;
+	}
+
+	return 0;
+}
+
 void mapobj_correct_coll (mapobj *m)
 {
 	float bestx = 0.0, besty = 0.0;
