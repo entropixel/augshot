@@ -200,7 +200,7 @@ void rndr_drawsprite (texture *tx, point p, float spritedist)
 	for (i = xstart; i < x + w / 2; i++)
 	{
 		// don't render off screen
-		if (x < 0 || x > SWIDTH - 1)
+		if (i < 0 || i > SWIDTH - 1)
 			continue;
 
 		// don't render if there's a wall in front
@@ -212,7 +212,7 @@ void rndr_drawsprite (texture *tx, point p, float spritedist)
 
 		for (j = ystart; j < y; j++)
 		{
-			if (y < 0 || y > SHEIGHT - 1)
+			if (j < 0 || j > SHEIGHT - 1)
 				continue;
 
 			uint32 offsy = (float)(j - ystart) * ratio;
@@ -228,6 +228,7 @@ void rndr_drawsprite (texture *tx, point p, float spritedist)
 }
 
 texture walltex = { "res/textures/lower_normal.png" };
+texture floortex = { "res/textures/lower_floor.png" };
 texture guntex = { "res/hud/gun.png" };
 texture plastex = { "res/objects/effects/plasma.png" };
 
@@ -256,6 +257,7 @@ void rndr_prepare (void)
 		pplut [i] = atanf ((((float)SWIDTH / 2.0 - i)) / ppdist);
 
 	rndr_loadtex (&walltex, NULL, 0, 0);
+	rndr_loadtex (&floortex, NULL, 0, 0);
 	rndr_loadtex (&guntex, NULL, 64, 64);
 	rndr_loadtex (&plastex, &plasma_frames, 32, 32);
 
@@ -308,7 +310,7 @@ void rndr_floor (uint32 x, uint32 start)
 
 	for (i = start; i < SHEIGHT; i++)
 	{
-		sdist = ppdist * (64.0 / (i - SHEIGHT / 2));
+		sdist = ppdist * ((128.0 * (0.5 - bobamt)) / (i - SHEIGHT / 2));
 		adist = sdist / pplutcos;
 
 		// world coordinates:
@@ -317,7 +319,7 @@ void rndr_floor (uint32 x, uint32 start)
 
 		dark = 1 / (sdist * LIGHTGRAD);
 		dark = dark > 1 ? 1 : dark;
-		rndr_darken (x, i, 32, 32, 32, dark);
+		rndr_pixel (x, i, *(floortex.pixels + ((pxy % walltex.h) * walltex.rw) + (pxx % walltex.rw)), dark);
 	}
 }
 
