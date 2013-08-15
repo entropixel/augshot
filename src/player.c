@@ -11,6 +11,7 @@
 #include "player.h"
 
 mapobj player = { { 64, 64 }, 0.0, 32.0, player_logic };
+mapobj testcoll = { { 64, 256 }, 0.0, 32.0 };
 
 void player_logic (mapobj *self)
 {
@@ -70,6 +71,8 @@ void player_logic (mapobj *self)
 
 		it = it->next;
 	}
+
+	mapobj_obj_coll (self, &testcoll);
 
 	#if 0
 	// test against each wall of each tile

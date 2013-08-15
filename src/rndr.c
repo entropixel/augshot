@@ -8,14 +8,19 @@
 
 #include "geom.h"
 #include "rndr.h"
+#include "anim.h"
 #include "mapobj.h"
 #include "player.h"
 #include "level.h"
 
 #define LIGHTGRAD 0.012
+#define RNDRDIST 8192
 uint32 *pixels;
 float pplut [SWIDTH] = { 0 }; // LUT for angles pointing to points on the projection plane
 float ppdist; // distance to projection plane center, from the player
+
+float zbuf [SWIDTH] = { 0 }; // store wall distances, for rendering sprites
+mapsprite *sprite_head = NULL, *sprite_tail = NULL;
 
 static float bobframes = 0.0, bobamt = 0.0;
 
@@ -31,7 +36,8 @@ static inline void rndr_darken (uint32 x, uint32 y, float r, float g, float b, f
 
 static inline void rndr_pixel (uint32 x, uint32 y, uint32 px, float mul)
 {
-	rndr_darken (x, y, px & 0x00ff0000 >> 16, px & 0x0000ff00 >> 8, px & 0x000000ff, mul);
+	// stb_image has the red and blue swapped, compared to pixels
+	rndr_darken (x, y, (px & 0x000000ff), (px & 0x0000ff00) >> 8, (px & 0x00ff0000) >> 16, mul);
 }
 
 static inline void rndr_clear (void)
@@ -39,12 +45,204 @@ static inline void rndr_clear (void)
 	memset (pixels, 0, SWIDTH * SHEIGHT * 4);
 }
 
-void rndr_loadtex (texture *tx)
+void rndr_loadtex (texture *tx, animframe *frames, uint32 w, uint32 h)
 {
-	tx->pixels = stbi_load (tx->path, &(tx->w), &(tx->h), NULL, 4);
+	tx->pixels = (uint32*)stbi_load (tx->path, &(tx->w), &(tx->h), NULL, 4);
+
+	// save real width, for grabbing a pixel
+	tx->rw = tx->w;
+
+	if (w || h)
+	{
+		tx->w = w;
+		tx->h = h;
+	}
+
+	if (frames)
+	{
+		tx->frames = frames;
+		tx->curframe = 0;
+		tx->dur = tx->frames [0].dur;
+	}
+	else
+		tx->frames = NULL; // no animation
 }
 
-texture walltex = { .path = "res/textures/lower_normal.png" };
+void rndr_texadvframe (texture *tx)
+{
+	if (!tx->frames || tx->dur == -1)
+		return;
+
+	if (--tx->dur == 0) // go to next frame
+	{
+		tx->curframe = tx->frames [tx->curframe].next;
+		tx->dur = tx->frames [tx->curframe].dur;
+	}
+}
+
+void rndr_drawtex (texture *tx, uint32 x, uint32 y)
+{
+	int i, j, aoffx = 0, aoffy = 0;
+	uint32 *pixel;
+
+	// set offset if we have to, to draw the proper frame
+	if (tx->frames)
+	{
+		aoffx = tx->w * tx->frames [tx->curframe].x;
+		aoffy = tx->h * tx->frames [tx->curframe].y;
+	}
+
+	for (i = 0; i < tx->w; i++)
+	for (j = 0; j < tx->h; j++)
+	{
+		pixel = tx->pixels + (j + aoffy) * tx->rw + (i + aoffx);
+		if (i + x >= 0 && i + x < SWIDTH && j + y >= 0 && j + y < SHEIGHT && (*pixel & 0xff000000) >> 24 == 255)
+			rndr_pixel (x + i, y + j, *pixel, 1.0);
+	}
+
+	rndr_texadvframe (tx);
+}
+
+void rndr_addsprite (texture *tx, point *p)
+{
+	mapsprite *ms = malloc (sizeof (mapsprite));
+
+	ms->p = p;
+	memcpy (&(ms->tx), tx, sizeof (texture));
+	ms->next = NULL;
+
+	if (!sprite_head)
+		sprite_head = sprite_tail = ms;
+	else
+	{
+		sprite_tail->next = ms;
+		sprite_tail = ms;
+	}
+}
+
+mapsprite *rndr_spritesort (mapsprite *list, mapsprite **end)
+{
+	mapsprite *sorted = NULL;
+
+	while (list)
+	{
+		mapsprite *head = list, **trail = &sorted;
+
+		if (list->next)
+			*end = list->next;
+
+		list = list->next;
+
+		while (1)
+		{
+			// move the head?
+			if (!(*trail) || head->dist > (*trail)->dist)
+			{
+				head->next = *trail;
+				*trail = head;
+				break;
+			}
+			else
+				trail = &(*trail)->next;
+		}
+	}
+
+	return sorted;
+}
+
+// render texture, taking distance into account
+void rndr_drawsprite (texture *tx, point p, float spritedist)
+{
+	if (spritedist > RNDRDIST || spritedist == 0)
+		return;
+
+	// translate point by -player [x,y]
+	point tpoint = { p.x - player.p.x, p.y - player.p.y };
+
+	// apply rotation matrix to tpoint
+	point rpoint = { tpoint.x * cos (-player.angle) - tpoint.y * sin (-player.angle),
+	                 tpoint.x * sin (-player.angle) + tpoint.y * cos (-player.angle) };
+
+	if (rpoint.x < 0) // sprite is behind camera
+		return;
+
+	// calculate angle between player and p
+	float ang = asinf (rpoint.y / spritedist);
+
+	// straight distance
+	float sdist = spritedist * cosf (-ang);
+
+	if (sdist < 0)
+		return;
+
+	// using that angle, find screen coordinates
+	float x = -(tanf (ang) * ppdist - (float)SWIDTH / 2.0);
+	float y = ((128.0 * (0.5 - bobamt)) / (sdist / ppdist)) + (float)SHEIGHT / 2.0;
+
+	// now find the scale to render the sprite at
+	float h = ((float)tx->h / sdist) * ppdist;
+	float ratio = (float)tx->h / h;
+	float w = (float)tx->w / ratio;
+
+	int xstart = x - w / 2, aoffx = 0;
+	int ystart = y - h, aoffy = 0;
+	uint32 *pixel;
+	float dark = 1 / (sdist * LIGHTGRAD);
+	dark = dark > 1 ? 1 : dark;
+
+	if (tx->frames) // we need to offset the section we render
+	{
+		aoffx = tx->w * tx->frames [tx->curframe].x;
+		aoffy = tx->h * tx->frames [tx->curframe].y;
+	}
+
+	int i, j;
+	for (i = xstart; i < x + w / 2; i++)
+	{
+		// don't render off screen
+		if (x < 0 || x > SWIDTH - 1)
+			continue;
+
+		// don't render if there's a wall in front
+		if (sdist > zbuf [i])
+			continue;
+
+		// calculate texture x from scaled x
+		uint32 offsx = (float)(i - xstart) * ratio;
+
+		for (j = ystart; j < y; j++)
+		{
+			if (y < 0 || y > SHEIGHT - 1)
+				continue;
+
+			uint32 offsy = (float)(j - ystart) * ratio;
+
+			// find pixel, and render it
+			pixel = tx->pixels + (offsy + aoffy) * tx->rw + (offsx + aoffx);
+			if ((*pixel & 0xff000000) >> 24 == 255)
+				rndr_pixel (i, j, *pixel, dark);
+		}
+	}
+
+	rndr_texadvframe (tx);
+}
+
+texture walltex = { "res/textures/lower_normal.png" };
+texture guntex = { "res/hud/gun.png" };
+texture plastex = { "res/objects/effects/plasma.png" };
+
+static point spoints [10] = {
+	{ 128, 128 },
+	{ 256, 256 },
+	{ 64, 128 },
+	{ 256, 254 },
+	{ 300, 200 },
+	{ 256, 64 },
+	{ 100, 32 },
+	{ 128, 64 },
+	{ 64, 64 },
+	{ 512, 64 }
+};
 
 void rndr_prepare (void)
 {
@@ -57,7 +255,12 @@ void rndr_prepare (void)
 	for (i = 0; i < SWIDTH; i++)
 		pplut [i] = atanf ((((float)SWIDTH / 2.0 - i)) / ppdist);
 
-	rndr_loadtex (&walltex);
+	rndr_loadtex (&walltex, NULL, 0, 0);
+	rndr_loadtex (&guntex, NULL, 64, 64);
+	rndr_loadtex (&plastex, &plasma_frames, 32, 32);
+
+	for (i = 0; i < 10; i++)
+		rndr_addsprite (&plastex, &(spoints [i]));
 }
 
 // render wall section
@@ -66,7 +269,6 @@ uint32 rndr_column (float dist, uint32 x, line *ray, line *wall, point in)
 {
 	int i;
 	int32 offsx, offsy;
-	uint32 *pixel; 
 	float colh = (128.0 / dist) * ppdist;
 	float hratio = 128.0 / colh;
 	int colstart = SHEIGHT / 2 - colh * (0.5 + bobamt);
@@ -74,17 +276,15 @@ uint32 rndr_column (float dist, uint32 x, line *ray, line *wall, point in)
 	dark = dark > 1 ? 1 : dark;
 
 	offsx = distcalc (wall->a, in);
+	offsx %= walltex.w;
 
 	for (i = colstart; i < SHEIGHT / 2 + colh * (0.5 - bobamt); i++)
 	{
 		if (i < 0 || i >= SHEIGHT)
 			continue;
 
-		offsx %= walltex.w;
 		offsy = (float)(i - colstart) * hratio;
-
-		pixel = walltex.pixels + (offsy * walltex.w) + offsx;
-		rndr_pixel (x, i, *pixel, dark);
+		rndr_pixel (x, i, *(walltex.pixels + (offsy * walltex.rw) + offsx), dark);
 	}
 
 	return i;
@@ -110,6 +310,8 @@ void rndr_floor (uint32 x, uint32 start)
 	{
 		sdist = ppdist * (64.0 / (i - SHEIGHT / 2));
 		adist = sdist / pplutcos;
+
+		// world coordinates:
 		pxx = player.p.x + plcos * adist;
 		pxy = player.p.y + plsin * adist;
 
@@ -124,7 +326,6 @@ static inline float rndr_col_distcalc (uint32 x, line *ray, point in)
 	return distcalc (ray->a, in) * cosf (-pplut [x]);
 }
 
-#define RNDRDIST 8192
 extern uint16 frametimes [48];
 void rndr_dorndr (void)
 {
@@ -191,6 +392,7 @@ void rndr_dorndr (void)
 		}
 
 		// render best choice
+		zbuf [i] = bestdist;
 		if (best)
 		{
 			colend = rndr_column (bestdist, i, &ray, best, bestpt);
@@ -200,13 +402,32 @@ void rndr_dorndr (void)
 			rndr_floor (i, SHEIGHT / 2);
 	}
 
+	// render sprites
+	// update distances:
+	mapsprite *sit = sprite_head;
+	while (sit)
+	{
+		sit->dist = distcalc (player.p, *(sit->p));
+		sit = sit->next;
+	}
+
+	// sort by distance
+	sit = sprite_head = rndr_spritesort (sprite_head, &sprite_tail);
+
+	// cycle and render
+	while (sit)
+	{
+		rndr_drawsprite (&(sit->tx), *(sit->p), sit->dist);
+		sit = sit->next;
+	}
+
+//	rndr_drawtex (&plastex, 4, 4);
+
+	// draw hud stuff
+	rndr_drawtex (&guntex, SWIDTH / 2 - 32 + (sinf (bobframes / 2) * 8.0), SHEIGHT - 60 + (bobamt * 80.0));
+
 	// draw debug stuff (render times)
 	for (i = 0; i < 48; i++)
 		if (frametimes [i] < SHEIGHT)
 			rndr_setpixel (i, SHEIGHT - 1 - frametimes [i], 200, 200, 0);
-
-//	for (i = 0; i < walltex.w * walltex.h; i++)
-//		rndr_pixel (i % walltex.w, i / walltex.h, *(walltex.pixels + ((i / walltex.h) * walltex.w) + i % walltex.w), 1.0);
-
-//	player.angle += 0.01;
 }

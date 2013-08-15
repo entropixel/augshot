@@ -87,7 +87,11 @@ int main (int argc, char **argv)
 			if (ev.type == SDL_QUIT)
 				running = 0;
 			if (ev.type == SDL_KEYDOWN || ev.type == SDL_KEYUP)
+			{
 				input_keys = SDL_GetKeyboardState (NULL);
+				if (input_keydown ("Escape"))
+					running = 0;
+			}
 			if (ev.type == SDL_MOUSEMOTION)
 				input_movemouse (&(ev.motion));
 		}
