@@ -25,6 +25,6 @@ struct line_s;
 uint8 mapobj_line_coll (mapobj *m, struct line_s *ln);
 uint8 mapobj_obj_coll (mapobj *m, mapobj *t);
 void mapobj_correct_coll (mapobj *m);
-void mapobj_shoot (mapobj *m);
+void mapobj_shoot (mapobj *m, float angle);
 
 #endif // MAPOBJ_H__

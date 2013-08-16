@@ -44,6 +44,10 @@ keydef_t keydefs [] = {
 
 void input_movemouse (SDL_MouseMotionEvent *mm)
 {
-//	SDL_WarpMouseInWindow (NULL, SWIDTH / 2, SHEIGHT / 2);
 	player_turn (&player, mm->xrel);
+}
+
+uint8 input_mousedown (int button)
+{
+	return SDL_GetMouseState (NULL, NULL) & SDL_BUTTON (button);
 }

@@ -75,6 +75,9 @@ uint8 rndr_texadvframe (texture *tx)
 
 	if (--tx->dur == 0) // go to next frame
 	{
+		if (tx->frames [tx->curframe].func)
+			tx->frames [tx->curframe].func ();
+
 		tx->curframe = tx->frames [tx->curframe].next;
 		if (tx->curframe == -1)
 			return 1;
@@ -83,6 +86,15 @@ uint8 rndr_texadvframe (texture *tx)
 	}
 
 	return 0;
+}
+
+void rndr_texsetframe (texture *tx, int8 frame)
+{
+	if (!tx->frames)
+		return;
+
+	tx->curframe = frame;
+	tx->dur = tx->frames [tx->curframe].dur;;
 }
 
 void rndr_drawtex (texture *tx, uint32 x, uint32 y)
@@ -249,19 +261,6 @@ texture floortex = { "res/textures/lower_floor.png" };
 texture guntex = { "res/hud/gun.png" };
 texture plastex = { "res/objects/effects/plasma.png" };
 
-static point spoints [10] = {
-	{ 128, 128 },
-	{ 256, 256 },
-	{ 64, 128 },
-	{ 256, 254 },
-	{ 300, 200 },
-	{ 256, 64 },
-	{ 100, 32 },
-	{ 128, 64 },
-	{ 64, 64 },
-	{ 512, 64 }
-};
-
 void rndr_prepare (void)
 {
 	int i;
@@ -275,11 +274,8 @@ void rndr_prepare (void)
 
 	rndr_loadtex (&walltex, NULL, 0, 0);
 	rndr_loadtex (&floortex, NULL, 0, 0);
-	rndr_loadtex (&guntex, NULL, 64, 64);
-	rndr_loadtex (&plastex, &plasma_frames, 32, 32);
-
-	for (i = 0; i < 1; i++)
-		rndr_addsprite (&plastex, &(spoints [i]), 0);
+	rndr_loadtex (&guntex, gun_frames, 64, 64);
+	rndr_loadtex (&plastex, plasma_frames, 32, 32);
 }
 
 // render wall section
@@ -346,6 +342,8 @@ static inline float rndr_col_distcalc (uint32 x, line *ray, point in)
 }
 
 extern uint16 frametimes [48];
+extern uint8 renderdebug;
+
 void rndr_dorndr (void)
 {
 	int i;
@@ -458,7 +456,7 @@ void rndr_dorndr (void)
 	rndr_drawtex (&guntex, SWIDTH / 2 - 32 + (sinf (bobframes / 2) * 8.0), SHEIGHT - 60 + (bobamt * 80.0));
 
 	// draw debug stuff (render times)
-	for (i = 0; i < 48; i++)
+	for (i = 0; renderdebug && i < 48; i++)
 		if (frametimes [i] < SHEIGHT)
 			rndr_setpixel (i, SHEIGHT - 1 - frametimes [i], 200, 200, 0);
 }

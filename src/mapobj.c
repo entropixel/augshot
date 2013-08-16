@@ -91,14 +91,14 @@ void mapobj_correct_coll (mapobj *m)
 point bulletfifo [1024];
 uint32 bfidx = 0;
 
-void mapobj_shoot (mapobj *m)
+void mapobj_shoot (mapobj *m, float angle)
 {
 	int lx, ly;
 	line hitscan = { { m->p.x, m->p.y } };
 	point bestpt, in;
 	linelist *it;
 	float compdist, bestdist = 8192.0;
-	float mcos = cosf (m->angle), msin = sinf (m->angle);
+	float mcos = cosf (angle), msin = sinf (angle);
 	// cast the shot out
 	hitscan.b.x = hitscan.a.x + mcos * 8192.0;
 	hitscan.b.y = hitscan.a.y + msin * 8192.0;
@@ -131,7 +131,6 @@ void mapobj_shoot (mapobj *m)
 	bestpt.x = hitscan.a.x + mcos * (bestdist - 8.0);
 	bestpt.y = hitscan.a.y + msin * (bestdist - 8.0);
 
-	printf ("%f, %f\n", bestpt.x, bestpt.y);
 	// copy our intersection over to the fifo, so it doesn't go out of scope when we need it later, then create a bullet puff
 	bulletfifo [bfidx] = bestpt;
 	rndr_addsprite (&plastex, &(bulletfifo [bfidx]), 1);

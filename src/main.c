@@ -1,8 +1,10 @@
 #include <stdio.h>
+#include <time.h>
 
 #include "sdl.h"
 
 #include "global.h"
+#include "xor.h"
 #include "input.h"
 #include "geom.h"
 #include "mapobj.h"
@@ -24,6 +26,7 @@ uint8 running = 1;
 uint32 curtick = 0;
 static uint32 ticktime = 1000 / 60;
 uint16 frametimes [48] = { 0 };
+uint8 renderdebug = 0;
 
 int main (int argc, char **argv)
 {
@@ -58,6 +61,8 @@ int main (int argc, char **argv)
 		return 4;
 	}
 
+	xsrand (time (NULL));
+
 	// setup input stuff
 	SDL_SetWindowGrab (win, 1);
 	SDL_SetRelativeMouseMode (1);
@@ -91,6 +96,8 @@ int main (int argc, char **argv)
 				input_keys = SDL_GetKeyboardState (NULL);
 				if (input_keydown ("Escape"))
 					running = 0;
+				if (input_keydown ("F3"))
+					renderdebug = !renderdebug;
 			}
 			if (ev.type == SDL_MOUSEMOTION)
 				input_movemouse (&(ev.motion));
