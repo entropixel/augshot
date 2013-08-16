@@ -16,7 +16,7 @@ typedef struct
 	uint8 x;
 	uint8 y;
 	int8 dur;
-	uint8 next;
+	int8 next;
 } animframe;
 
 typedef struct
@@ -29,7 +29,7 @@ typedef struct
 	int32 rw;
 
 	animframe *frames;
-	uint8 curframe;
+	int8 curframe;
 	int8 dur;
 } texture;
 
@@ -38,9 +38,14 @@ typedef struct mapsprite_s
 	point *p;
 	float dist;
 	texture tx;
+	uint8 wall;
+	uint8 clear;
 	struct mapsprite_s *next;
 } mapsprite;
 
+extern texture plastex;
+
+void rndr_addsprite (texture *tx, point *p, uint8 wall);
 void rndr_prepare (void);
 void rndr_dorndr (void);
 

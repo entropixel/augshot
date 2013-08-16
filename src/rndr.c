@@ -20,7 +20,7 @@ float pplut [SWIDTH] = { 0 }; // LUT for angles pointing to points on the projec
 float ppdist; // distance to projection plane center, from the player
 
 float zbuf [SWIDTH] = { 0 }; // store wall distances, for rendering sprites
-mapsprite *sprite_head = NULL, *sprite_tail = NULL;
+mapsprite *spritelist = NULL;
 
 static float bobframes = 0.0, bobamt = 0.0;
 
@@ -68,16 +68,21 @@ void rndr_loadtex (texture *tx, animframe *frames, uint32 w, uint32 h)
 		tx->frames = NULL; // no animation
 }
 
-void rndr_texadvframe (texture *tx)
+uint8 rndr_texadvframe (texture *tx)
 {
 	if (!tx->frames || tx->dur == -1)
-		return;
+		return 0;
 
 	if (--tx->dur == 0) // go to next frame
 	{
 		tx->curframe = tx->frames [tx->curframe].next;
+		if (tx->curframe == -1)
+			return 1;
+
 		tx->dur = tx->frames [tx->curframe].dur;
 	}
+
+	return 0;
 }
 
 void rndr_drawtex (texture *tx, uint32 x, uint32 y)
@@ -103,37 +108,36 @@ void rndr_drawtex (texture *tx, uint32 x, uint32 y)
 	rndr_texadvframe (tx);
 }
 
-void rndr_addsprite (texture *tx, point *p)
+void rndr_addsprite (texture *tx, point *p, uint8 wall)
 {
 	mapsprite *ms = malloc (sizeof (mapsprite));
 
 	ms->p = p;
 	memcpy (&(ms->tx), tx, sizeof (texture));
+	ms->wall = wall;
+	ms->clear = 0;
 	ms->next = NULL;
 
-	if (!sprite_head)
-		sprite_head = sprite_tail = ms;
+	if (!spritelist)
+		spritelist = ms;
 	else
 	{
-		sprite_tail->next = ms;
-		sprite_tail = ms;
+		ms->next = spritelist;
+		spritelist = ms;
 	}
 }
 
-mapsprite *rndr_spritesort (mapsprite *list, mapsprite **end)
+mapsprite *rndr_spritesort (mapsprite *list)
 {
 	mapsprite *sorted = NULL;
 
 	while (list)
-	{
+	{   
 		mapsprite *head = list, **trail = &sorted;
-
-		if (list->next)
-			*end = list->next;
 
 		list = list->next;
 
-		while (1)
+		while (1) 
 		{
 			// move the head?
 			if (!(*trail) || head->dist > (*trail)->dist)
@@ -151,13 +155,13 @@ mapsprite *rndr_spritesort (mapsprite *list, mapsprite **end)
 }
 
 // render texture, taking distance into account
-void rndr_drawsprite (texture *tx, point p, float spritedist)
+void rndr_drawsprite (mapsprite *ms)
 {
-	if (spritedist > RNDRDIST || spritedist == 0)
+	if (ms->dist > RNDRDIST || ms->dist == 0)
 		return;
 
 	// translate point by -player [x,y]
-	point tpoint = { p.x - player.p.x, p.y - player.p.y };
+	point tpoint = { ms->p->x - player.p.x, ms->p->y - player.p.y };
 
 	// apply rotation matrix to tpoint
 	point rpoint = { tpoint.x * cos (-player.angle) - tpoint.y * sin (-player.angle),
@@ -167,22 +171,32 @@ void rndr_drawsprite (texture *tx, point p, float spritedist)
 		return;
 
 	// calculate angle between player and p
-	float ang = asinf (rpoint.y / spritedist);
+	float ang = asinf (rpoint.y / ms->dist);
 
 	// straight distance
-	float sdist = spritedist * cosf (-ang);
+	float sdist = ms->dist * cosf (-ang);
 
 	if (sdist < 0)
 		return;
 
 	// using that angle, find screen coordinates
 	float x = -(tanf (ang) * ppdist - (float)SWIDTH / 2.0);
-	float y = ((128.0 * (0.5 - bobamt)) / (sdist / ppdist)) + (float)SHEIGHT / 2.0;
+	float y = 0.0;
+	if (ms->wall)
+	{
+		if (x >= 0.0 && x < SWIDTH)
+		{
+			float colh = (128.0 / zbuf [(int)x]) * ppdist;
+			y = (float)SHEIGHT / 2.0 - colh * (0.5 + bobamt) + colh * 0.67;
+		}
+	}
+	else
+		y = ((128.0 * (0.5 - bobamt)) / (sdist / ppdist)) + (float)SHEIGHT / 2.0;
 
 	// now find the scale to render the sprite at
-	float h = ((float)tx->h / sdist) * ppdist;
-	float ratio = (float)tx->h / h;
-	float w = (float)tx->w / ratio;
+	float h = ((float)ms->tx.h / sdist) * ppdist;
+	float ratio = (float)ms->tx.h / h;
+	float w = (float)ms->tx.w / ratio;
 
 	int xstart = x - w / 2, aoffx = 0;
 	int ystart = y - h, aoffy = 0;
@@ -190,10 +204,10 @@ void rndr_drawsprite (texture *tx, point p, float spritedist)
 	float dark = 1 / (sdist * LIGHTGRAD);
 	dark = dark > 1 ? 1 : dark;
 
-	if (tx->frames) // we need to offset the section we render
+	if (ms->tx.frames) // we need to offset the section we render
 	{
-		aoffx = tx->w * tx->frames [tx->curframe].x;
-		aoffy = tx->h * tx->frames [tx->curframe].y;
+		aoffx = ms->tx.w * ms->tx.frames [ms->tx.curframe].x;
+		aoffy = ms->tx.h * ms->tx.frames [ms->tx.curframe].y;
 	}
 
 	int i, j;
@@ -218,13 +232,16 @@ void rndr_drawsprite (texture *tx, point p, float spritedist)
 			uint32 offsy = (float)(j - ystart) * ratio;
 
 			// find pixel, and render it
-			pixel = tx->pixels + (offsy + aoffy) * tx->rw + (offsx + aoffx);
+			pixel = ms->tx.pixels + (offsy + aoffy) * ms->tx.rw + (offsx + aoffx);
 			if ((*pixel & 0xff000000) >> 24 == 255)
 				rndr_pixel (i, j, *pixel, dark);
 		}
 	}
 
-	rndr_texadvframe (tx);
+	if (rndr_texadvframe (&(ms->tx)))
+	{
+		ms->clear = 1;
+	}
 }
 
 texture walltex = { "res/textures/lower_normal.png" };
@@ -261,8 +278,8 @@ void rndr_prepare (void)
 	rndr_loadtex (&guntex, NULL, 64, 64);
 	rndr_loadtex (&plastex, &plasma_frames, 32, 32);
 
-	for (i = 0; i < 10; i++)
-		rndr_addsprite (&plastex, &(spoints [i]));
+	for (i = 0; i < 1; i++)
+		rndr_addsprite (&plastex, &(spoints [i]), 0);
 }
 
 // render wall section
@@ -406,7 +423,7 @@ void rndr_dorndr (void)
 
 	// render sprites
 	// update distances:
-	mapsprite *sit = sprite_head;
+	mapsprite *sit = spritelist, *prev = NULL;
 	while (sit)
 	{
 		sit->dist = distcalc (player.p, *(sit->p));
@@ -414,12 +431,24 @@ void rndr_dorndr (void)
 	}
 
 	// sort by distance
-	sit = sprite_head = rndr_spritesort (sprite_head, &sprite_tail);
+	sit = spritelist = rndr_spritesort (spritelist);
 
 	// cycle and render
 	while (sit)
 	{
-		rndr_drawsprite (&(sit->tx), *(sit->p), sit->dist);
+		if (sit->clear) // this sprite was marked to get removed from the list, so don't render it, just free it.
+		{
+			if (prev)
+				prev->next = sit->next;
+			else // sit was head
+				spritelist = NULL;
+			free (sit);
+			sit = prev ? prev->next : NULL;
+			continue;
+		}
+
+		rndr_drawsprite (sit);
+		prev = sit;
 		sit = sit->next;
 	}
 

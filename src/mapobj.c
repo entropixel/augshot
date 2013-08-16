@@ -6,6 +6,9 @@
 
 #include "geom.h"
 #include "mapobj.h"
+#include "level.h"
+#include "player.h"
+#include "rndr.h"
 
 uint8 mapobj_line_coll (mapobj *m, line *ln)
 {
@@ -82,4 +85,56 @@ void mapobj_correct_coll (mapobj *m)
 	m->collidx = 0;
 	m->p.x += bestx;
 	m->p.y += besty;
+}
+
+// This probably is pretty horrible, but should suffice, as we need a place off of the stack to store bullet info:
+point bulletfifo [1024];
+uint32 bfidx = 0;
+
+void mapobj_shoot (mapobj *m)
+{
+	int lx, ly;
+	line hitscan = { { m->p.x, m->p.y } };
+	point bestpt, in;
+	linelist *it;
+	float compdist, bestdist = 8192.0;
+	float mcos = cosf (m->angle), msin = sinf (m->angle);
+	// cast the shot out
+	hitscan.b.x = hitscan.a.x + mcos * 8192.0;
+	hitscan.b.y = hitscan.a.y + msin * 8192.0;
+
+	lx = (uint32)(player.p.x / 256.0);
+	ly = (uint32)(player.p.y / 256.0);
+	it = level [lx] [ly].visible;
+
+	// find closest wall that intersects the hitscan
+	while (it)
+	{
+		if (intersect (&hitscan, it->l, &in))
+			compdist = distcalc (hitscan.a, in);
+		else
+		{
+			it = it->next;
+			continue;
+		}
+
+		if (compdist < bestdist)
+			bestdist = compdist;
+
+		it = it->next;
+	}
+
+	if (bestdist == 8192.0) // no hits
+		return;
+
+	// We need to move the hit a little bit away from the wall, so it doesn't clip with the wall
+	bestpt.x = hitscan.a.x + mcos * (bestdist - 8.0);
+	bestpt.y = hitscan.a.y + msin * (bestdist - 8.0);
+
+	printf ("%f, %f\n", bestpt.x, bestpt.y);
+	// copy our intersection over to the fifo, so it doesn't go out of scope when we need it later, then create a bullet puff
+	bulletfifo [bfidx] = bestpt;
+	rndr_addsprite (&plastex, &(bulletfifo [bfidx]), 1);
+
+	bfidx = (++bfidx) % 1024;
 }
