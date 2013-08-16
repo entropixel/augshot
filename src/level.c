@@ -6,16 +6,7 @@
 
 #include "geom.h"
 #include "level.h"
-
-/*uint8 leveltmp [LH] [LW] = {
-	{ 1, 0, 0, 0, 0, 0 },
-	{ 1, 1, 1, 0, 1, 0 },
-	{ 0, 0, 1, 0, 1, 0 },
-	{ 0, 1, 1, 1, 1, 0 },
-	{ 0, 1, 0, 0, 1, 0 },
-	{ 0, 0, 0, 1, 1, 0 },
-};*/
-
+#if 0
 uint8 leveltmp [LH] [LW] = {
 	{ 1, 1, 1, 1, 1, 1 },
 	{ 1, 1, 1, 1, 1, 1 },
@@ -23,6 +14,20 @@ uint8 leveltmp [LH] [LW] = {
 	{ 0, 1, 1, 1, 1, 0 },
 	{ 0, 1, 0, 0, 1, 0 },
 	{ 0, 0, 0, 1, 1, 0 },
+};
+#endif
+
+uint8 leveltmp [LH] [LW] = {
+	{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
+	{ 1, 0, 0, 0, 1, 1, 0, 0, 0, 0 },
+	{ 1, 1, 0, 0, 1, 1, 1, 1, 1, 0 },
+	{ 1, 1, 0, 0, 0, 0, 0, 1, 1, 0 },
+	{ 0, 1, 0, 1, 1, 1, 1, 1, 0, 0 },
+	{ 0, 1, 0, 1, 0, 1, 0, 0, 0, 0 },
+	{ 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 1, 1, 1, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 1, 1 }
 };
 
 tile level [LW] [LH];
@@ -32,7 +37,6 @@ tile level [LW] [LH];
 // check if there's a clear line of sight to end
 static inline uint8 samepoint (point *end, point *test)
 {
-//	return end->x == test->x && end->y == test->y;
 	return fabs (end->x - test->x) <= 1.0 && fabs (end->y - test->y) <= 1.0;
 }
 
@@ -47,7 +51,6 @@ static inline point pthack (line *ln, float percent)
 
 	ret.x = ln->a.x + (ln->b.x - ln->a.x) * percent;
 	ret.y = ln->a.y + (ln->b.y - ln->a.y) * percent;
-//	printf ("point of %f, %f and %f, %f is %f, %f\n", ln->a.x, ln->a.y, ln->b.x, ln->b.y, ret.x, ret.y);
 	return ret;
 }
 
@@ -78,7 +81,6 @@ static inline uint8 los (line *ray, point end)
 
 	}
 
-//	printf ("line of sight between %f, %f and %f, %f\n", ray->a.x, ray->a.y, ray->b.x, ray->b.y);
 	return 1;
 }
 

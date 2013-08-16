@@ -19,11 +19,16 @@ typedef struct mapobj_s
 	float momy;
 	uint8 collidx;
 	collision collisions [256];
+
+	struct mapobj_s *next;
 } mapobj;
 
+extern mapobj *objlist;
+
 struct line_s;
-uint8 mapobj_line_coll (mapobj *m, struct line_s *ln);
-uint8 mapobj_obj_coll (mapobj *m, mapobj *t);
+void mapobj_add (mapobj *m);
+uint8 mapobj_line_coll (mapobj *m, struct line_s *ln, uint8 correct);
+uint8 mapobj_obj_coll (mapobj *m, mapobj *t, uint8 correct);
 void mapobj_correct_coll (mapobj *m);
 void mapobj_shoot (mapobj *m, float angle);
 

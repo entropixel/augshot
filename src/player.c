@@ -13,7 +13,6 @@
 #include "rndr.h"
 
 mapobj player = { { 64, 64 }, 0.0, 32.0, player_logic };
-mapobj testcoll = { { 64, 256 }, 0.0, 32.0 };
 
 extern texture guntex;
 void player_logic (mapobj *self)
@@ -71,7 +70,7 @@ void player_logic (mapobj *self)
 	while (it)
 	{
 		if (it->l)
-			mapobj_line_coll (self, it->l);
+			mapobj_line_coll (self, it->l, 1);
 
 		it = it->next;
 	}

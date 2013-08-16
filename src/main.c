@@ -22,11 +22,19 @@ SDL_Window *win;
 SDL_Texture *screen;
 SDL_Renderer *rndr;
 
+uint8 scale = 1;
 uint8 running = 1;
 uint32 curtick = 0;
-static uint32 ticktime = 1000 / 60;
+uint32 ticktime = 1000 / 60;
 uint16 frametimes [48] = { 0 };
 uint8 renderdebug = 0;
+
+mapobj testcoll = { { 64, 256 }, 0.0, 32.0 };
+extern texture zombietex;
+
+#ifdef _WIN32
+#define SDL_GetWindowDisplayIndex SDL_GetWindowDisplay
+#endif // hack for my older build of SDL2
 
 int main (int argc, char **argv)
 {
@@ -43,11 +51,27 @@ int main (int argc, char **argv)
 		return 1;
 	}
 
-	if (!(win = SDL_CreateWindow ("7dfps - " GIT_VERSION, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SWIDTH * 2, SHEIGHT * 2, 0)))
+	if (!(win = SDL_CreateWindow ("augshot - " GIT_VERSION, SDL_WINDOWPOS_CENTERED,
+	            SDL_WINDOWPOS_CENTERED, SWIDTH, SHEIGHT, 0)))
 	{
 		fprintf (stderr, "SDL_CreateWindow failure (%s)\n", SDL_GetError ());
 		return 2;
 	}
+
+	// Pick best scale
+	SDL_Rect bounds;
+	SDL_GetDisplayBounds (SDL_GetWindowDisplayIndex (win), &bounds);
+
+	while (scale <= 7)
+	{
+		if (SWIDTH * (scale + 1) < bounds.w && SHEIGHT * (scale + 1) < bounds.h)
+			scale ++;
+		else
+			break;
+	}
+
+	SDL_SetWindowSize (win, SWIDTH * scale, SHEIGHT * scale);
+	SDL_SetWindowPosition (win, bounds.w / 2 - (SWIDTH * scale) / 2, bounds.h / 2 - (SHEIGHT * scale) / 2);
 
 	if (!(rndr = SDL_CreateRenderer (win, -1, SDL_RENDERER_ACCELERATED)))
 	{
@@ -70,6 +94,9 @@ int main (int argc, char **argv)
 
 	rndr_prepare ();
 	level_prepare ((tile*)level);
+	mapobj_add (&player);
+	//mapobj_add (&testcoll);
+	//rndr_addsprite (&zombietex, &(testcoll.p), 0);
 
 	int32 nexttick = SDL_GetTicks ();
 	SDL_Event ev;
@@ -81,6 +108,7 @@ int main (int argc, char **argv)
 	while (running)
 	{
 		static int32 sleeptime, loops = 0;
+		static mapobj *it;
 
 		// set tick
 		curtick ++;
@@ -104,7 +132,15 @@ int main (int argc, char **argv)
 		}
 
 		// do logic here
-		player.logic (&player);
+		// map object logic:
+		it = objlist;
+		while (it)
+		{
+			if (it->logic)
+				it->logic (it);
+
+			it = it->next;
+		}
 
 		// if our current time is ahead of the start of the next tick, we will skip rendering this frame,
 		// in an attempt to catch back up. we'll do this up to 15 times before giving up and rendering

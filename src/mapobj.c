@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <math.h>
-#include <assert.h>
 
 #include "global.h"
 
@@ -10,13 +9,18 @@
 #include "player.h"
 #include "rndr.h"
 
-uint8 mapobj_line_coll (mapobj *m, line *ln)
+mapobj *objlist = NULL;
+
+void mapobj_add (mapobj *m)
+{
+	m->next = objlist;
+	objlist = m;
+}
+
+uint8 mapobj_line_coll (mapobj *m, line *ln, uint8 correct)
 {
 	float dist_ab = distcalc (ln->a, ln->b), dist_cproj;
 	point d, proj;
-
-	// check for any weirdness
-	assert (ln->a.x <= ln->b.x && ln->a.y <= ln->b.y);
 
 	// directional vector from a to b
 	d.x = (ln->b.x - ln->a.x) / dist_ab;
@@ -44,24 +48,30 @@ uint8 mapobj_line_coll (mapobj *m, line *ln)
 	if (dist_cproj < m->radius)
 	{
 		// push the distance required to make dist_cproj == m->radius
-		m->collisions [m->collidx].dx = ((m->p.x - proj.x) / dist_cproj) * (m->radius - dist_cproj);
-		m->collisions [m->collidx].dy = ((m->p.y - proj.y) / dist_cproj) * (m->radius - dist_cproj);
-		m->collidx ++;
+		if (correct)
+		{
+			m->collisions [m->collidx].dx = ((m->p.x - proj.x) / dist_cproj) * (m->radius - dist_cproj);
+			m->collisions [m->collidx].dy = ((m->p.y - proj.y) / dist_cproj) * (m->radius - dist_cproj);
+			m->collidx ++;
+		}
 		return 1;
 	}
 
 	return 0;
 }
 
-uint8 mapobj_obj_coll (mapobj *m, mapobj *t)
+uint8 mapobj_obj_coll (mapobj *m, mapobj *t, uint8 correct)
 {
 	float dist_mt = distcalc (m->p, t->p) - t->radius;
 
 	if (dist_mt < m->radius)
 	{
-		m->collisions [m->collidx].dx = ((m->p.x - t->p.x) / dist_mt) * (m->radius - dist_mt);
-		m->collisions [m->collidx].dy = ((m->p.y - t->p.y) / dist_mt) * (m->radius - dist_mt);
-		m->collidx ++;
+		if (correct)
+		{
+			m->collisions [m->collidx].dx = ((m->p.x - t->p.x) / dist_mt) * (m->radius - dist_mt);
+			m->collisions [m->collidx].dy = ((m->p.y - t->p.y) / dist_mt) * (m->radius - dist_mt);
+			m->collidx ++;
+		}
 		return 1;
 	}
 
@@ -97,6 +107,7 @@ void mapobj_shoot (mapobj *m, float angle)
 	line hitscan = { { m->p.x, m->p.y } };
 	point bestpt, in;
 	linelist *it;
+	mapobj *mit = objlist, *bestobj = NULL;
 	float compdist, bestdist = 8192.0;
 	float mcos = cosf (angle), msin = sinf (angle);
 	// cast the shot out
@@ -130,6 +141,32 @@ void mapobj_shoot (mapobj *m, float angle)
 	// We need to move the hit a little bit away from the wall, so it doesn't clip with the wall
 	bestpt.x = hitscan.a.x + mcos * (bestdist - 8.0);
 	bestpt.y = hitscan.a.y + msin * (bestdist - 8.0);
+	hitscan.b.x = bestpt.x;
+	hitscan.b.y = bestpt.y;
+
+	// find closest object that the line intersects, if any
+	while (mit)
+	{
+		if (mit == m)
+			goto next;
+
+		if (mapobj_line_coll (mit, &hitscan, 0))
+			compdist = distcalc (m->p, mit->p);
+		else
+			goto next;
+	
+
+		if (compdist < bestdist)
+			bestobj = mit;
+
+		next:
+		mit = mit->next;
+	}
+
+	if (bestobj)
+	{
+		// damage here
+	}
 
 	// copy our intersection over to the fifo, so it doesn't go out of scope when we need it later, then create a bullet puff
 	bulletfifo [bfidx] = bestpt;

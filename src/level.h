@@ -20,8 +20,8 @@ typedef struct tile_s
 	linelist *end_visible;
 } tile;
 
-#define LW 6
-#define LH 6
+#define LW 10
+#define LH 10
 extern tile level [LW] [LH];
 
 void level_prepare (tile *l);

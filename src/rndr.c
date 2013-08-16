@@ -260,6 +260,7 @@ texture walltex = { "res/textures/lower_normal.png" };
 texture floortex = { "res/textures/lower_floor.png" };
 texture guntex = { "res/hud/gun.png" };
 texture plastex = { "res/objects/effects/plasma.png" };
+texture zombietex = { "res/objects/enemy/zombie1.png" };
 
 void rndr_prepare (void)
 {
@@ -276,6 +277,7 @@ void rndr_prepare (void)
 	rndr_loadtex (&floortex, NULL, 0, 0);
 	rndr_loadtex (&guntex, gun_frames, 64, 64);
 	rndr_loadtex (&plastex, plasma_frames, 32, 32);
+	rndr_loadtex (&zombietex, NULL, 64, 64);
 }
 
 // render wall section
@@ -343,6 +345,7 @@ static inline float rndr_col_distcalc (uint32 x, line *ray, point in)
 
 extern uint16 frametimes [48];
 extern uint8 renderdebug;
+extern uint32 ticktime;
 
 void rndr_dorndr (void)
 {
@@ -439,7 +442,7 @@ void rndr_dorndr (void)
 			if (prev)
 				prev->next = sit->next;
 			else // sit was head
-				spritelist = NULL;
+				spritelist = sit->next;
 			free (sit);
 			sit = prev ? prev->next : NULL;
 			continue;
@@ -450,13 +453,11 @@ void rndr_dorndr (void)
 		sit = sit->next;
 	}
 
-//	rndr_drawtex (&plastex, 4, 4);
-
 	// draw hud stuff
 	rndr_drawtex (&guntex, SWIDTH / 2 - 32 + (sinf (bobframes / 2) * 8.0), SHEIGHT - 60 + (bobamt * 80.0));
 
 	// draw debug stuff (render times)
 	for (i = 0; renderdebug && i < 48; i++)
 		if (frametimes [i] < SHEIGHT)
-			rndr_setpixel (i, SHEIGHT - 1 - frametimes [i], 200, 200, 0);
+			rndr_setpixel (i, SHEIGHT - 1 - frametimes [i], 200, frametimes [i] < ticktime ? 200 : 0, 0);
 }

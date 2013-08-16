@@ -8,7 +8,7 @@ GIT_VERSION = $(shell git rev-parse --short HEAD)-$(shell date +%y%m%d)
 CFLAGS = -std=c99 -pedantic $(shell $(SDL2_PATH)/bin/sdl2-config --cflags) -O$(OPT) -g$(DBG) -DGIT_VERSION="\"$(GIT_VERSION)\"" $(MYCFLAGS) 
 LDFLAGS = $(DYNAMIC) $(shell $(SDL2_PATH)/bin/sdl2-config --libs) -lm $(MYLDFLAGS)
 OBJDIR = obj
-OUT = 7dfps
+OUT = augshot
 
 .PHONY: clean
 default: $(OUT)
