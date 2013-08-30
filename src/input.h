@@ -26,7 +26,7 @@
 #ifndef INPUT_H__
 #define INPUT_H__
 
-uint8 *input_keys;
+const uint8 *input_keys;
 
 typedef struct
 {
