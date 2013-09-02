@@ -19,6 +19,10 @@ release: $(OUT)
 debug: CFLAGS += -O0 -g3
 debug: $(OUT)
 
+profile: CFLAGS += -O0 -g3 -pg
+profile: LDFLAGS += -pg
+profile: $(OUT)
+
 SRC = $(wildcard src/*.c)
 HDR = $(wildcard src/*.h)
 OBJ = $(patsubst src/%.c,$(OBJDIR)/%.o,$(SRC))
