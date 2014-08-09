@@ -1,3 +1,3 @@
 [submodule "res"]
 	path = res
-	url = git@underhalls.net:augshot-res
+	url = https://github.com/entropixel/augshot-res
